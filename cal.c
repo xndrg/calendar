@@ -93,6 +93,7 @@ Date get_current_date()
 
 void print_calendar(Date date)
 {
+    // Gaps at the first line where we print month and year
     Gaps gaps = get_gaps(date.month.name);
 
     printf("%0*c%s %d%0*c\n",
@@ -107,17 +108,16 @@ void print_calendar(Date date)
     // We can use for loop for doing this, probably it will me more clear, but idc
     int day_of_month = (date.day_of_week - date.day) + (date.day / 7) * 7 + 1;
 
-    for (int i = 0; i < day_of_month; ++i) {
+    for (int i = 0; i < day_of_month; ++i)
 	printf("%2c ", ' ');
-    }
     
     for (int i = 1; i <= date.month.days; ++i) {
-	if (i == date.day)
+	if (i == date.day) {
+	    // Using ANSI escape codes to change background color of current day
 	    printf("\033[30;107m%2d\033[0m ", i);
-	else
+	} else
 	    printf("%2d ", i);
 
-	
 	if (day_of_month == 6) {
 	    day_of_month = 0;
 	    printf("\n");
