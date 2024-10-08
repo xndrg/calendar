@@ -1,150 +1,137 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <windows.h>
 #include <time.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
-#define TRUE 1
-#define FALSE 0
+#define YEAR_LEN 4
 
-int days_in_month[]={0,31,28,31,30,31,30,31,31,30,31,30,31};
+const char header[] = "Su Mo Tu We Th Fr Sa";
+#define HEADER_LEN (sizeof(header) / sizeof(char) - 1)
 
-struct date {
-	int date_year;
-	int date_month;
-	int date_day;
-};
+typedef struct {
+    char  *contents;
+    size_t len;
+} String;
 
-struct date getCurrentDate(void);
-int detDayCode(int);
-int detLeapYear(int);
-void calendar(int year, int daycode, int monthnum);
-void SetColorAndBackground(int, int);
+typedef struct {
+    String name;
+    int    days;
+} Month;
 
-char *months[]=
+typedef struct {
+    int left_gap;
+    int right_gap;
+} Gaps;
+
+typedef struct {
+    int   day;
+    Month month;
+    int   year;
+    int   day_of_week; // [0, 6]
+} Date;
+
+bool is_leap_year(int year)
 {
-	" ",
-	"January",
-	"February",
-	"March",
-	"April",
-	"May",
-	"June",
-	"July",
-	"August",
-	"September",
-	"October",
-	"November",
-	"December"
-};
+    if((year % 4 == 0 && year % 100 != 0 ) || (year % 400 == 0))
+	return true;
+    else
+	return false;
+}
 
-int main(int argc, char *argv[])
+Month get_month(int year, int month)
 {
-	int year, daycode, leapyear, month;
+    switch (month) {
+    case 0:  return (Month) {(String) {"January",   7}, 31};
+    case 1: {
+	int days;
+
+	if (is_leap_year(year)) days = 29; else days = 28;
 	
-	printf("\n");
-	if (argc != 1)
-	{
-		year = atoi(argv[1]);
-		month = atoi(argv[2]);
-	}	
+	return (Month) {(String) {"February",  8}, days};
+    }
+    case 2:  return (Month) {(String) {"March",     5}, 31};
+    case 3:  return (Month) {(String) {"April",     5}, 30};
+    case 4:  return (Month) {(String) {"May",       3}, 31};
+    case 5:  return (Month) {(String) {"June",      4}, 30};
+    case 6:  return (Month) {(String) {"July",      4}, 31};
+    case 7:  return (Month) {(String) {"August",    6}, 31};
+    case 8:  return (Month) {(String) {"September", 9}, 30};
+    case 9:  return (Month) {(String) {"October",   7}, 31};
+    case 10: return (Month) {(String) {"November",  8}, 30};
+    case 11: return (Month) {(String) {"December",  8}, 31};
+    default: return (Month) {(String) {"",          0}, 0 };
+    }
+}
+
+Gaps get_gaps(String month) {
+    int gap = HEADER_LEN - (month.len + YEAR_LEN + 1);
+    int left_gap, right_gap;
+
+    if (gap % 2 == 0) {
+	left_gap = right_gap = gap / 2;
+    } else {
+	right_gap = gap / 2;
+	left_gap = right_gap + 1;
+    }
+    
+    return (Gaps) {left_gap, right_gap};
+}
+
+Date get_current_date()
+{
+    time_t t = time(NULL);
+    struct tm *date_time = localtime(&t);
+    
+    int   year        = date_time->tm_year + 1900;
+    Month month       = get_month(year, date_time->tm_mon);
+    int   day         = date_time->tm_mday;
+    int   day_of_week = date_time->tm_wday;
+    
+    return (Date) {day, month, year, day_of_week};
+}
+
+void print_calendar(Date date)
+{
+    Gaps gaps = get_gaps(date.month.name);
+
+    printf("%0*c%s %d%0*c\n",
+	   gaps.left_gap,  ' ',
+	   date.month.name.contents,
+	   date.year,
+	   gaps.right_gap, ' '); 
+    
+    printf("%s\n", header);
+
+    // Maybe a bit strange way to find day of week of first day of given month
+    // We can use for loop for doing this, probably it will me more clear, but idc
+    int day_of_month = (date.day_of_week - date.day) + (date.day / 7) * 7 + 1;
+
+    for (int i = 0; i < day_of_month; ++i) {
+	printf("%2c ", ' ');
+    }
+    
+    for (int i = 1; i <= date.month.days; ++i) {
+	if (i == date.day)
+	    printf("\033[30;107m%2d\033[0m ", i);
 	else
-	{
-		struct date curdate;
-		curdate = getCurrentDate();
-		year = curdate.date_year;
-		month = curdate.date_month;
-	}
-	daycode = detDayCode(year);
-	detLeapYear(year);
-	calendar(year, daycode, month);
-	printf("\n\n");
-}
+	    printf("%2d ", i);
 
-int detDayCode(int year)
-{
-	int daycode;
-	int d1, d2, d3;
 	
-	d1 = (year - 1.) / 4.0;
-	d2 = (year - 1.) / 100.;
-	d3 = (year - 1.) / 400.;
-	daycode = (year + d1 - d2 + d3) % 7 - 1;
-	if (daycode == -1)
-		daycode = 6;
-	return daycode;
+	if (day_of_month == 6) {
+	    day_of_month = 0;
+	    printf("\n");
+	} else
+	    day_of_month++;
+    }
+
+    printf("\n");
 }
 
-int detLeapYear(int year)
+int main(void)
 {
-	if(year % 4 == FALSE && year % 100 != FALSE || year % 400 == FALSE)
-	{
-		days_in_month[2] = 29;
-		return TRUE;
-	}
-	else
-	{
-		days_in_month[2] = 28;
-		return FALSE;
-	}
-}
-
-void calendar(int year, int daycode, int monthnum)
-{
-	int month = monthnum, day;
-	struct date DateCurrent = getCurrentDate();
-	
-	int highlight;
-	if(DateCurrent.date_year == year && DateCurrent.date_month == month)
-		highlight = TRUE;
-	else
-		highlight = FALSE;
-
-	printf("%s %d", months[month], year);
-	printf("\n\nMo Tu We Th Fr Sa Su\n");
-		
-	for(int k = 1; k < month; k++)
-		daycode = (daycode + days_in_month[k]) % 7;
-	for (day = 1; day <= daycode * 3; day++)
-		printf(" ");
-		
-	for (day = 1; day <= days_in_month[month]; day++)
-	{
-		if (highlight == TRUE && DateCurrent.date_day == day)
-		{
-			SetColorAndBackground(0, 7);
-			printf("%2d", day);
-			SetColorAndBackground(6, 0);
-		}
-		else
-			printf("%2d", day);
-			
-		if ((day + daycode) % 7 > 0)
-			printf(" ");
-		else
-			printf("\n");
-	}
-		
-}
-
-struct date getCurrentDate(void)
-{
-	struct date CurrentDate;
-	time_t now;
-
-	time(&now);
-
-	struct tm *local = localtime(&now);
-
-	CurrentDate.date_day = local->tm_mday;
-	CurrentDate.date_month = local->tm_mon + 1;
-	CurrentDate.date_year = local->tm_year + 1900;
-	
-	return CurrentDate;
-}
-
-void SetColorAndBackground(int ForgC, int BackC)
-{
-     WORD wColor = ((BackC & 0x0F) << 4) + (ForgC & 0x0F);;
-     SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), wColor);
-     return;
+    Date current_date = get_current_date();
+    print_calendar(current_date);
+    
+    return 0;
 }
